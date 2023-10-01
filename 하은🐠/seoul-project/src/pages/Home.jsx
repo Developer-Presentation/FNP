@@ -1,26 +1,39 @@
 import {styled} from "styled-components";
-import React, {useState, useEffect} from "react";
-import useInfiniteScroll from "../hooks/useInfiniteScroll";
+import React, {useState, useEffect, useRef} from "react";
 import seoulProjectApi from "../API/seoulProjectApi";
 
 const Home = () => {
+  //서울 문화리스트 담는애
   const [seoulList, setSeoulList] = useState([]);
+  //데이터 가져오기 시작 인덱스 담는 애
   const [startValue, setStartValue] = useState(0);
+  //스크롤 인터섹션 이벤트 중복 호출 방지
+  const [isFetching, setIsFetching] = useState(false);
 
+  //서울 리스트 데이터를 무한 스크롤링으로 가져오기 위한 함수
+  const handleInfiniteScroll = () => {
+    fetchSeoulList(startValue);
+  };
+
+  //서울리스트 데이터 가져오는 함수 (api 홀로 호출하는..)
   const fetchSeoulList = async (start) => {
     try {
       const listData = await seoulProjectApi().getSeoulList(start);
-      console.log("List data:", listData);
 
+      // 예전 데이터를 저장하는 부분을 만들기
       setSeoulList((prevList) => {
         let updatedList = [];
         if (prevList && prevList.row) {
-          updatedList = [...prevList.row, ...(listData.row || [])];
+          if (Array.isArray(prevList.row)) {
+            updatedList = [...prevList.row, ...(listData.row || [])];
+          } else {
+            updatedList = [prevList.row, ...(listData.row || [])];
+          }
         } else {
           updatedList = [...(listData.row || [])];
         }
 
-        return {...prevList, row: updatedList}; // Ensure prevList is an object with a 'row' property
+        return {...prevList, row: updatedList};
       });
 
       setStartValue(start + 30);
@@ -29,25 +42,28 @@ const Home = () => {
     }
   };
 
-  const handleInfiniteScroll = () => {
-    fetchSeoulList(startValue);
-  };
+  const observerRef = useRef(null);
 
-  const [isFetching] = useInfiniteScroll(handleInfiniteScroll);
-
+  //isFetching, startValue가 변경될 때 호출된다.
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const listData = await seoulProjectApi().getSeoulList(startValue);
-        console.log("List data:", listData);
-        setSeoulList(listData);
-      } catch (error) {
-        console.error("Error fetching data: ", error);
+    // IntersectionObserver를 사용해서 무한스크롤을 구현한다.
+    const observer = new IntersectionObserver((entries) => {
+      const firstEntry = entries[0];
+      if (firstEntry.isIntersecting && !isFetching) {
+        fetchSeoulList(startValue);
+      }
+    });
+
+    if (observerRef.current) {
+      observer.observe(observerRef.current);
+    }
+
+    return () => {
+      if (observerRef.current) {
+        observer.unobserve(observerRef.current);
       }
     };
-
-    fetchData();
-  }, [startValue]);
+  }, [isFetching, startValue]);
 
   return (
     <>
@@ -72,6 +88,8 @@ const Home = () => {
             )}
           </DetaList>
         </InfoSection>
+        {/* IntersectionObserver가 관찰할 DOM 요소를 설정하는 역할 */}
+        <div ref={observerRef}></div>
       </Main>
     </>
   );
