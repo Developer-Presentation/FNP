@@ -1,6 +1,7 @@
 import {styled} from "styled-components";
 import React, {useState, useEffect, useRef} from "react";
 import seoulProjectApi from "../API/seoulProjectApi";
+import Search from "./Search";
 
 const Home = () => {
   //서울 문화리스트 담는애
@@ -19,16 +20,14 @@ const Home = () => {
   const fetchSeoulList = async (start) => {
     try {
       const listData = await seoulProjectApi().getSeoulList(start);
+      console.log("List data:", listData);
 
       // 예전 데이터를 저장하는 부분을 만들기
       setSeoulList((prevList) => {
         let updatedList = [];
+
         if (prevList && prevList.row) {
-          if (Array.isArray(prevList.row)) {
-            updatedList = [...prevList.row, ...(listData.row || [])];
-          } else {
-            updatedList = [prevList.row, ...(listData.row || [])];
-          }
+          updatedList = [...prevList.row, ...(listData.row || [])];
         } else {
           updatedList = [...(listData.row || [])];
         }
@@ -57,7 +56,6 @@ const Home = () => {
     if (observerRef.current) {
       observer.observe(observerRef.current);
     }
-
     return () => {
       if (observerRef.current) {
         observer.unobserve(observerRef.current);
@@ -75,18 +73,22 @@ const Home = () => {
       <Main>
         <InfoSection>
           <h2>서울 문화 리스트:</h2>
-          <DetaList>
-            {seoulList && seoulList.row?.length > 0 ? (
+          <Search />
+          <DateList>
+            {seoulList.row?.length > 0 ? (
               seoulList.row.map((item, index) => (
                 <li key={index}>
-                  <h3>{item.TITLE}</h3>
-                  <p>{item.DATE}</p>
+                  <a href={item.HMPG_ADDR}>
+                    <img className="poster" src={item.MAIN_IMG} alt="공연포스터" />
+                    <h3>{item.TITLE}</h3>
+                    <p>{item.DATE}</p>
+                  </a>
                 </li>
               ))
             ) : (
               <li>돌아가</li>
             )}
-          </DetaList>
+          </DateList>
         </InfoSection>
         {/* IntersectionObserver가 관찰할 DOM 요소를 설정하는 역할 */}
         <div ref={observerRef}></div>
@@ -103,10 +105,9 @@ const Header = styled.header`
   position: fixed;
   background-color: #ffffff;
 `;
+
 const HeaderInner = styled.div`
-  /* border: 1px solid green; */
   width: 90%;
-  /* padding: 2rem */
   margin: 0 auto;
 
   h1 {
@@ -123,7 +124,6 @@ const Main = styled.main`
 `;
 
 const InfoSection = styled.div`
-  /* border: 1px solid blue; */
   width: 90%;
   margin: 0 auto;
   h2 {
@@ -132,12 +132,12 @@ const InfoSection = styled.div`
   }
 `;
 
-const DetaList = styled.ul`
+const DateList = styled.ul`
   width: 100%;
   display: flex;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 30px;
 
   li {
     border: 1px solid grey;
@@ -152,11 +152,19 @@ const DetaList = styled.ul`
     white-space: nowrap;
     text-overflow: ellipsis;
     font-size: 20px;
-    margin: 20px 0;
+    margin: 20px 0 5px;
   }
 
   p {
     font-size: 12px;
+  }
+
+  .poster {
+    object-fit: contain; /* 원하는 크기에 따라 이 속성을 조절하세요 */
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
   }
 
   @media (max-width: 992px) {
